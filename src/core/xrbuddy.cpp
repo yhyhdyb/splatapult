@@ -15,8 +15,9 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
-#ifdef TRACY_ENABLE
-#include <tracy/Tracy.hpp>
+#ifndef __ANDROID__
+//#include <tracy/Tracy.hpp>
+#include <Tracy.hpp>
 #else
 #define ZoneScoped
 #define ZoneScopedNC(NAME, COLOR)
@@ -402,20 +403,11 @@ static bool CreateSession(XrInstance instance, XrSystemId systemId, XrSession& s
         }
     }
 
-#ifdef WIN32
     XrGraphicsBindingOpenGLWin32KHR glBinding = {};
     glBinding.type = XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR;
     glBinding.next = NULL;
     glBinding.hDC = wglGetCurrentDC();
     glBinding.hGLRC = wglGetCurrentContext();
-#else
-    XrGraphicsBindingOpenGLXlibKHR glBinding = {};
-    glBinding.type = XR_TYPE_GRAPHICS_BINDING_OPENGL_XLIB_KHR;
-    glBinding.next = NULL;
-    glBinding.xDisplay = mainContext.xdisplay;
-    glBinding.glxDrawable = mainContext.glxDrawable;
-    glBinding.glxContext = mainContext.glxContext;
-#endif
 
 #elif defined (XR_USE_GRAPHICS_API_OPENGL_ES)
     XrGraphicsRequirementsOpenGLESKHR reqs = {};
@@ -876,6 +868,7 @@ static bool CreateSwapchains(XrInstance instance, XrSession session,
                 foundFormatIndex = i;
                 break;
             }
+            i++;
         }
         if (foundFormatIndex != swapchainFormatCount)
         {
@@ -973,9 +966,9 @@ static GLuint CreateDepthTexture(GLuint colorTexture, GLint width, GLint height)
     return depthTexture;
 }
 
-XrBuddy::XrBuddy(MainContext& mainContextIn, const glm::vec2& nearFarIn):
-    mainContext(mainContextIn)
+XrBuddy::XrBuddy(const MainContext& mainContextIn, const glm::vec2& nearFarIn)
 {
+    mainContext = mainContextIn;
     nearFar = nearFarIn;
 
 #ifdef XR_USE_GRAPHICS_API_OPENGL
