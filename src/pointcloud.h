@@ -13,7 +13,8 @@ class PointCloud
 public:
     PointCloud();
 
-    bool ImportPly(const std::string& plyFilename);
+   // bool ImportPly(const std::string& plyFilename);
+    bool ImportPly(const std::vector<std::string>& plyFilenames);
     bool ExportPly(const std::string& plyFilename) const;
 
     void InitDebugCloud();

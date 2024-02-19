@@ -177,7 +177,7 @@ bool MagicCarpet::Init(bool isFramebufferSRGBEnabledIn)
     carpetTex = std::make_shared<Texture>(carpetImg, texParams);
 
     carpetProg = std::make_shared<Program>();
-    if (!carpetProg->LoadVertFrag("shader/carpet_vert.glsl", "shader/carpet_frag.glsl"))
+    if (!carpetProg->LoadVertFrag("./shader/carpet_vert.glsl", "./shader/carpet_frag.glsl"))
     {
         Log::E("Error loading carpet shaders!\n");
         return false;

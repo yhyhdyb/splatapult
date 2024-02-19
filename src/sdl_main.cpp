@@ -8,18 +8,12 @@
 #include <chrono>
 #include <GL/glew.h>
 #include <glm/glm.hpp>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
-#include <SDL2/SDL_syswm.h>
+#include <SDL.h>
+#include <SDL_opengl.h>
 #include <stdint.h>
 #include <thread>
-
-#ifdef TRACY_ENABLE
-#include <tracy/Tracy.hpp>
-#else
-#define FrameMark do {} while(0)
-#endif
-
+//#include <tracy/Tracy.hpp>
+#include <Tracy.hpp>
 #include "core/log.h"
 #include "core/util.h"
 
@@ -89,23 +83,6 @@ int main(int argc, char *argv[])
     ctx.gl_context = SDL_GL_CreateContext(ctx.window);
 
     SDL_GL_MakeCurrent(ctx.window, ctx.gl_context);
-
-#ifdef __linux__
-    // Initialize context from the SDL window
-    SDL_SysWMinfo info;
-    SDL_VERSION(&info.version)
-    auto ret = SDL_GetWindowWMInfo(ctx.window, &info);
-    if (ret != SDL_TRUE)
-    {
-        Log::W("Failed to retrieve SDL window info: %s\n", SDL_GetError());
-    }
-    else
-    {
-        mainContext.xdisplay = info.info.x11.display;
-        mainContext.glxDrawable = (GLXWindow)info.info.x11.window;
-        mainContext.glxContext = (GLXContext)ctx.gl_context;
-    }
-#endif
 
     GLenum err = glewInit();
     if (GLEW_OK != err)
