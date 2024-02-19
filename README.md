@@ -6,8 +6,8 @@ Splatapult
 [<img src="https://i.ytimg.com/vi/18DuNJRZbzQ/maxresdefault.jpg" width="50%">](https://www.youtube.com/watch?v=18DuNJRZbzQ "Splatapult Demo")
 
 A program to display 3d gaussian splats files
-
-splatapult [OPTIONS] ply_filename
+support multiple files
+splatapult [OPTIONS] ply_filename1 ply2 .....
 
 Options
 -------------
