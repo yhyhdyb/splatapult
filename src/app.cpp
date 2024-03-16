@@ -153,6 +153,7 @@ static void Clear(glm::ivec2 windowSize, bool setViewport = true)
     glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    // NOTE: if depth buffer has less then 24 bits, it can mess up splat rendering.
     glEnable(GL_DEPTH_TEST);
 
 #ifndef __ANDROID__
@@ -593,10 +594,12 @@ bool App::Init()
     splatRenderer = std::make_shared<SplatRenderer>();
 #if __ANDROID__
     bool useFullSH = false;
+    bool useRgcSortOverride = true;
 #else
     bool useFullSH = true;
+    bool useRgcSortOverride = false;
 #endif
-    if (!splatRenderer->Init(gaussianCloud, isFramebufferSRGBEnabled, useFullSH))
+    if (!splatRenderer->Init(gaussianCloud, isFramebufferSRGBEnabled, useFullSH, useRgcSortOverride))
     {
         Log::E("Error initializing splat renderer!\n");
         return false;
@@ -703,13 +706,27 @@ bool App::Init()
 
     inputBuddy->OnKey(SDLK_RETURN, [this, vrConfigFilename](bool down, uint16_t mod)
     {
-        if (down && opt.vrMode)
+        if (down)
         {
             if (!vrConfig)
             {
                 vrConfig = std::make_shared<VrConfig>();
             }
-            vrConfig->SetFloorMat(magicCarpet->GetCarpetMat());
+
+            if (opt.vrMode)
+            {
+                vrConfig->SetFloorMat(magicCarpet->GetCarpetMat());
+            }
+            else
+            {
+                glm::mat4 headMat = flyCam->GetCameraMat();
+                glm::vec3 pos = headMat[3];
+                pos -= glm::mat3(headMat) * glm::vec3(0.0f, 1.5f, 0.0f);
+                glm::mat4 floorMat = headMat;
+                floorMat[3] = glm::vec4(pos, 1.0f);
+                vrConfig->SetFloorMat(floorMat);
+            }
+
             if (vrConfig->ExportJson(vrConfigFilename))
             {
                 Log::I("Wrote \"%s\"\n", vrConfigFilename.c_str());
@@ -820,6 +837,39 @@ void App::UpdateFps(float fps)
     std::string text = "fps: " + std::to_string((int)fps);
     textRenderer->RemoveText(fpsText);
     fpsText = textRenderer->AddScreenTextWithDropShadow(glm::ivec2(0, 0), TEXT_NUM_ROWS, WHITE, BLACK, text);
+
+//#define FIND_BEST_NUM_BLOCKS_PER_WORKGROUP
+#ifdef FIND_BEST_NUM_BLOCKS_PER_WORKGROUP
+    Log::E("%s\n", text.c_str());
+    fpsVec.push_back(fps);
+    const uint32_t STEP_SIZE = 64;
+    if (fpsVec.size() == 2)
+    {
+        float dFps = fpsVec[1] - fpsVec[0];
+
+        uint32_t x = splatRenderer->numBlocksPerWorkgroup - STEP_SIZE;
+        Log::E("    (%.3f -> %.3f) dFps = %.3f, x = %u\n", fpsVec[0], fpsVec[1], dFps, x);
+        if (dFps < 0)
+        {
+            Log::E("    FPS DOWN, new x = %u\n", x - STEP_SIZE);
+            if (splatRenderer->numBlocksPerWorkgroup > STEP_SIZE)
+            {
+                splatRenderer->numBlocksPerWorkgroup = x - STEP_SIZE;
+            }
+        }
+        else
+        {
+            Log::E("    FPS UP, new x = %u\n", x + STEP_SIZE);
+            splatRenderer->numBlocksPerWorkgroup = x + STEP_SIZE;
+        }
+
+        fpsVec.clear();
+    }
+    else
+    {
+        splatRenderer->numBlocksPerWorkgroup = splatRenderer->numBlocksPerWorkgroup + STEP_SIZE;
+    }
+#endif
 }
 
 bool App::Process(float dt)
@@ -852,16 +902,48 @@ bool App::Process(float dt)
         xrBuddy->GetActionOrientation("l_aim_pose", &leftPose.rot, &leftPose.rotValid, &leftPose.rotTracked);
         xrBuddy->GetActionPosition("r_aim_pose", &rightPose.pos, &rightPose.posValid, &rightPose.posTracked);
         xrBuddy->GetActionOrientation("r_aim_pose", &rightPose.rot, &rightPose.rotValid, &rightPose.rotTracked);
-        glm::vec2 leftStick, rightStick;
-        bool valid, changed;
+
+        glm::vec2 leftStick(0.0f, 0.0f);
+        glm::vec2 rightStick(0.0f, 0.0f);
+        bool valid = false;
+        bool changed = false;
         xrBuddy->GetActionVec2("l_stick", &leftStick, &valid, &changed);
         xrBuddy->GetActionVec2("r_stick", &rightStick, &valid, &changed);
+
+        // Convert trackpad into a "stick", for HTC Vive controllers
+        glm::vec2 leftTrackpadStick(0.0f, 0.0f);
+        bool leftTrackpadClick = false;
+        xrBuddy->GetActionBool("l_trackpad_click", &leftTrackpadClick, &valid, &changed);
+        if (leftTrackpadClick && valid)
+        {
+            xrBuddy->GetActionFloat("l_trackpad_x", &leftTrackpadStick.x, &valid, &changed);
+            xrBuddy->GetActionFloat("l_trackpad_y", &leftTrackpadStick.y, &valid, &changed);
+        }
+        else
+        {
+            leftTrackpadStick = glm::vec2(0.0f, 0.0f);
+        }
+
+        glm::vec2 rightTrackpadStick(0.0f, 0.0f);
+        bool rightTrackpadClick = false;
+        xrBuddy->GetActionBool("r_trackpad_click", &rightTrackpadClick, &valid, &changed);
+        if (rightTrackpadClick && valid)
+        {
+            xrBuddy->GetActionFloat("r_trackpad_x", &rightTrackpadStick.x, &valid, &changed);
+            xrBuddy->GetActionFloat("r_trackpad_y", &rightTrackpadStick.y, &valid, &changed);
+        }
+        else
+        {
+            rightTrackpadStick = glm::vec2(0.0f, 0.0f);
+        }
+
         MagicCarpet::ButtonState buttonState;
         xrBuddy->GetActionBool("l_select_click", &buttonState.leftTrigger, &valid, &changed);
         xrBuddy->GetActionBool("r_select_click", &buttonState.rightTrigger, &valid, &changed);
         xrBuddy->GetActionBool("l_squeeze_click", &buttonState.leftGrip, &valid, &changed);
         xrBuddy->GetActionBool("r_squeeze_click", &buttonState.rightGrip, &valid, &changed);
-        magicCarpet->Process(headPose, leftPose, rightPose, leftStick, rightStick, buttonState, dt);
+        magicCarpet->Process(headPose, leftPose, rightPose, leftStick + leftTrackpadStick,
+                             rightStick + rightTrackpadStick, buttonState, dt);
     }
 #ifdef USE_SDL
 

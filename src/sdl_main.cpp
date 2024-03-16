@@ -69,6 +69,9 @@ int main(int argc, char *argv[])
     // Allow us to use automatic linear->sRGB conversion.
     SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 1);
 
+    // increase depth buffer size
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
     uint32_t windowFlags = SDL_WINDOW_OPENGL;
     if (app.IsFullscreen())
     {
@@ -90,6 +93,9 @@ int main(int argc, char *argv[])
         Log::E("Error: %s\n", glewGetErrorString(err));
         return 1;
     }
+
+    // AJT: TODO REMOVE disable vsync for benchmarks
+    SDL_GL_SetSwapInterval(0);
 
     SDL_AddEventWatch(Watch, NULL);
 

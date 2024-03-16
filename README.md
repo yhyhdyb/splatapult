@@ -5,6 +5,8 @@ Splatapult
 
 [<img src="https://i.ytimg.com/vi/18DuNJRZbzQ/maxresdefault.jpg" width="50%">](https://www.youtube.com/watch?v=18DuNJRZbzQ "Splatapult Demo")
 
+![Splatapult Build](https://github.com/hyperlogic/splatapult/actions/workflows/build.yaml/badge.svg)
+
 A program to display 3d gaussian splats files
 support multiple files
 splatapult [OPTIONS] ply_filename1 ply2 .....
@@ -34,6 +36,7 @@ Desktop Controls
 * c - toggle between initial SfM point cloud (if present) and gaussian splats.
 * n - jump to next camera
 * p - jump to previous camera
+* return - save the current position and orientation of the world into a vr.json file.
 
 VR Controls
 ---------------

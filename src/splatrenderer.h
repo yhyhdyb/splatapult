@@ -15,7 +15,6 @@
 
 #include "gaussiancloud.h"
 
-
 namespace rgc::radix_sort
 {
     struct sorter;
@@ -28,19 +27,24 @@ public:
     ~SplatRenderer();
 
     bool Init(std::shared_ptr<GaussianCloud> gaussianCloud, bool isFramebufferSRGBEnabledIn,
-              bool useFullSHIn);
+              bool useFullSHIn, bool useRgcSortOverrideIn);
 
     void Sort(const glm::mat4& cameraMat, const glm::mat4& projMat,
-              const glm::vec4& viewport, const glm::vec2& nearFar);
+                 const glm::vec4& viewport, const glm::vec2& nearFar);
 
     // viewport = (x, y, width, height)
     void Render(const glm::mat4& cameraMat, const glm::mat4& projMat,
                 const glm::vec4& viewport, const glm::vec2& nearFar);
+public:
+    uint32_t numBlocksPerWorkgroup = 1024;
 protected:
     void BuildVertexArrayObject(std::shared_ptr<GaussianCloud> gaussianCloud);
 
+    std::shared_ptr<rgc::radix_sort::sorter> sorter;
     std::shared_ptr<Program> splatProg;
     std::shared_ptr<Program> preSortProg;
+    std::shared_ptr<Program> histogramProg;
+    std::shared_ptr<Program> sortProg;
     std::shared_ptr<VertexArrayObject> splatVao;
 
     std::vector<uint32_t> indexVec;
@@ -49,12 +53,15 @@ protected:
     std::vector<uint32_t> atomicCounterVec;
 
     std::shared_ptr<BufferObject> keyBuffer;
+    std::shared_ptr<BufferObject> keyBuffer2;
+    std::shared_ptr<BufferObject> histogramBuffer;
     std::shared_ptr<BufferObject> valBuffer;
+    std::shared_ptr<BufferObject> valBuffer2;
     std::shared_ptr<BufferObject> posBuffer;
     std::shared_ptr<BufferObject> atomicCounterBuffer;
 
-    std::shared_ptr<rgc::radix_sort::sorter> sorter;
     uint32_t sortCount;
     bool isFramebufferSRGBEnabled;
     bool useFullSH;
+    bool useRgcSortOverride;
 };
